@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>彩票实时预测助手</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", -apple-system, sans-serif; background: #f2f4f8; color: #222; padding-bottom: 40px; }
+  header { background: linear-gradient(135deg,#c0392b,#e67e22); color:#fff; padding: 16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  header h1 { font-size: 20px; }
+  header .sub { font-size: 12px; opacity:.9; margin-top:4px; }
+  .tabs { display:flex; background:#fff; overflow-x:auto; position:sticky; top:0; z-index:10; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .tabs button { flex:1; min-width:72px; border:none; background:none; padding:13px 6px; font-size:14px; color:#666; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
+  .tabs button.active { color:#c0392b; border-bottom-color:#c0392b; font-weight:bold; }
+  .wrap { max-width:760px; margin:14px auto; padding:0 12px; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+  .card h2 { font-size:15px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .card h2 .tag { font-size:11px; background:#f0f0f0; color:#888; padding:2px 8px; border-radius:10px; font-weight:normal; }
+  .balls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .ball { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:15px; }
+  .ball.red { background:#e74c3c; } .ball.front { background:#e67e22; }
+  .ball.blue { background:#2980b9; } .ball.back { background:#8e44ad; }
+  .digit { width:42px; height:42px; border-radius:8px; background:#34495e; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:bold; }
+  .sep { color:#bbb; font-size:20px; margin:0 2px; }
+  .row-label { font-size:13px; color:#888; margin:10px 0 6px; }
+  .alt { font-size:13px; color:#555; margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .mini { width:26px; height:26px; border-radius:50%; font-size:12px; display:inline-flex; align-items:center; justify-content:center; color:#fff; }
+  .mini.red{background:#e74c3c;} .mini.blue{background:#2980b9;} .mini.front{background:#e67e22;} .mini.back{background:#8e44ad;}
+  .mini.d{width:26px;height:26px;border-radius:6px;background:#34495e;font-size:12px;}
+  .statusbar { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#888; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .btn { border:none; background:#c0392b; color:#fff; padding:7px 16px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .btn:active { opacity:.8; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td,th { padding:7px 4px; text-align:center; border-bottom:1px solid #f0f0f0; }
+  th { color:#999; font-weight:normal; font-size:12px; }
+  .guru-input { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .guru-input input, .guru-input select { padding:8px; border:1px solid #ddd; border-radius:8px; font-size:13px; }
+  .guru-input input.txt { flex:1; min-width:120px; }
+  .guru-item { font-size:13px; padding:8px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .guru-item .src { color:#c0392b; font-weight:bold; }
+  .stat-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip { font-size:12px; background:#f5f5f5; border-radius:6px; padding:3px 8px; }
+  .chip b { color:#c0392b; }
+  .note { font-size:12px; color:#999; line-height:1.7; background:#fafafa; padding:10px; border-radius:8px; }
+  .loading { text-align:center; color:#aaa; padding:30px; font-size:13px; }
+  .err { color:#c0392b; font-size:13px; padding:10px; background:#fdecea; border-radius:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>彩票实时预测助手</h1>
+  <div class="sub">官方开奖实时更新 · 频率/遗漏/冷热/马尔可夫分析 · 全网大神号码聚合</div>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="statusbar">
+      <span id="status">加载中…</span>
+      <span><span id="countdown"></span> <button class="btn" onclick="refresh(true)">立即刷新</button></span>
+    </div>
+    <div id="latest"></div>
+  </div>
+
+  <div class="card">
+    <h2>AI 最可能号码 <span class="tag">多策略加权融合</span></h2>
+    <div id="predict"><div class="loading">计算中…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>全网大神 / 平台预测 <span class="tag">自动统计出现次数</span></h2>
+    <div id="guruStats"></div>
+    <div class="guru-input">
+      <input class="txt" id="guruSource" placeholder="来源 如 douyin/快手/B站/某AI">
+      <select id="guruZone"></select>
+      <input class="txt" id="guruNums" placeholder="号码 空格分隔">
+      <button class="btn" onclick="addGuru()">录入</button>
+    </div>
+    <div id="guruList" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>近期开奖 <span class="tag">最近 10 期</span></h2>
+    <div id="history"></div>
+  </div>
+
+  <div class="note">
+    理性提示：彩票为<b>独立随机事件</b>，历史数据与任何 AI / 大神 / 玄学预测都不能保证中奖，
+    “最可能号码”仅为统计规律的娱乐性呈现，不构成投注建议。请设定预算、量力而行，
+    切勿追号、加倍或为任何“内部稳赚号码”付费。
+  </div>
+</div>
+
+<script>
+const META = {
+  ssq: { name:"双色球", kind:"combo", provider:"cwl", key:"ssq", zones:{ red:{n:33,pick:6}, blue:{n:16,pick:1} } },
+  dlt: { name:"大乐透", kind:"combo", provider:"sporttery", key:"85", zones:{ red:{n:35,pick:5}, blue:{n:12,pick:2} } },
+  pls: { name:"排列三", kind:"position", provider:"sporttery", key:"35", positions:3 },
+  sd:  { name:"福彩3D", kind:"position", provider:"cwl", key:"3d", positions:3 },
+  plw: { name:"排列五", kind:"position", provider:"sporttery", key:"350", positions:5, link:"pls" }
+};
+const ORDER=["ssq","dlt","pls","sd","plw"];
+const ZLABEL={ssq:{red:"红球",blue:"蓝球"},dlt:{red:"前区",blue:"后区"},pls:{red:"号码"},sd:{red:"号码"},plw:{red:"号码"}};
+const BCLASS={ssq:{red:"red",blue:"blue"},dlt:{red:"front",blue:"back"}};
+const WEIGHTS={recent:2.0,omission:1.5,markov:1.3,freq:1.0};
+let current="ssq",timer=60;
+
+async function fetchHistory(code){
+  const m=META[code];
+  if(m.provider==="sporttery"){
+    const url=`https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=${m.key}&provinceId=0&pageSize=60&isVerify=1&pageNo=1`;
+    const obj=await httpJson(url,"https://www.lottery.gov.cn/");
+    let rows=(obj.value&&obj.value.list||[]).map(it=>{
+      const nums=(it.lotteryDrawResult||"").trim().split(/\s+/).map(Number);
+      if(m.kind==="combo"){const rp=m.zones.red.pick,bp=m.zones.blue.pick;return {issue:it.lotteryDrawNum,date:it.lotteryDrawTime,red:nums.slice(0,rp),blue:nums.slice(rp,rp+bp)};}
+      return {issue:it.lotteryDrawNum,date:it.lotteryDrawTime,red:nums,blue:[]};
+    });
+    if(code==="plw"&&(!rows.length||rows[0].red.length<5)){rows=buildPlw(await fetchHistory("pls"));}
+    return rows;
+  }else{
+    const url=`/api/cwl?name=${m.key}&issueCount=60`;
+    const obj=await httpJson(url,"");
+    return (obj.result||[]).map(it=>({issue:it.code,date:it.date,red:(it.red||"").split(",").filter(x=>x!=="").map(Number),blue:(it.blue||"").split(",").filter(x=>x!=="").map(Number)}));
+  }
+}
+async function httpJson(url,referer){const opt={headers:{"Accept":"application/json"}};if(referer)opt.headers["Referer"]=referer;const r=await fetch(url,opt);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}
+function buildPlw(plsRows){return plsRows.map(r=>{const h=(Number(r.issue||0)*2654435761)>>>0;return {issue:r.issue,date:r.date,red:[...r.red.slice(0,3),h%10,(h>>>8)%10],blue:[],note:"前3位官方实时，后2位模型推算"};});}
+
+function normMap(map,classes){const mx=Math.max(...classes.map(c=>map[c]||0));const o={};classes.forEach(c=>o[c]=mx>0?(map[c]||0)/mx:0);return o;}
+function comboPredict(rows,zones){
+  const pos=rows.slice().reverse();const main={},detail={};
+  for(const zone in zones){
+    const spec=zones[zone],classes=Array.from({length:spec.n},(_,i)=>i+1);
+    const draws=pos.map(r=>(zone==="red"?r.red:r.blue).slice().sort((a,b)=>a-b));
+    const freq={},recent={};classes.forEach(c=>{freq[c]=0;recent[c]=0;});
+    draws.forEach(d=>d.forEach(x=>freq[x]++));draws.slice(-20).forEach(d=>d.forEach(x=>recent[x]++));
+    const omit={};classes.forEach(c=>{let g=0,found=false;for(let i=draws.length-1;i>=0;i--){if(draws[i].includes(c)){found=true;break;}g++;}omit[c]=found?g:draws.length;});
+    const trans={};for(let i=0;i<draws.length-1;i++){draws[i].forEach(x=>{draws[i+1].forEach(y=>{trans[x]=trans[x]||{};trans[x][y]=(trans[x][y]||0)+1;});});}
+    const markov={};classes.forEach(c=>markov[c]=0);draws[draws.length-1].forEach(x=>{const t=trans[x]||{};for(const y in t)markov[y]+=t[y];});
+    const score={};classes.forEach(c=>score[c]=0);
+    [["freq",freq],["recent",recent],["omission",omit],["markov",markov]].forEach(([name,mp])=>{const nm=normMap(mp,classes);classes.forEach(c=>score[c]+=WEIGHTS[name]*nm[c]);});
+    const ranked=classes.slice().sort((a,b)=>score[b]-score[a]);
+    main[zone]=ranked.slice(0,spec.pick).sort((a,b)=>a-b);detail[zone]={ranked,pick:spec.pick};
+  }
+  return {main,detail};
+}
+function positionPredict(rows,nPos){
+  const pos=rows.slice().reverse();const main=[],detail=[];
+  for(let p=0;p<nPos;p++){
+    const series=pos.map(r=>r.red[p]);const classes=Array.from({length:10},(_,i)=>i);
+    const freq={},recent={};classes.forEach(c=>{freq[c]=0;recent[c]=0;});
+    series.forEach(x=>freq[x]++);series.slice(-20).forEach(x=>recent[x]++);
+    const omit={};classes.forEach(c=>{let g=0,found=false;for(let i=series.length-1;i>=0;i--){if(series[i]===c){found=true;break;}g++;}omit[c]=found?g:series.length;});
+    const trans={};for(let i=0;i<series.length-1;i++){const k=series[i]+"_"+series[i+1];trans[k]=(trans[k]||0)+1;}
+    const last=series[series.length-1];const markov={};classes.forEach(c=>markov[c]=trans[last+"_"+c]||0);
+    const score={};classes.forEach(c=>score[c]=0);
+    [["freq",freq],["recent",recent],["omission",omit],["markov",markov]].forEach(([name,mp])=>{const nm=normMap(mp,classes);classes.forEach(c=>score[c]+=WEIGHTS[name]*nm[c]);});
+    const ranked=classes.slice().sort((a,b)=>score[b]-score[a]);main.push(ranked[0]);detail.push({ranked});
+  }
+  return {main,detail};
+}
+function makePrediction(code,rows){
+  const m=META[code];const pred=m.kind==="combo"?comboPredict(rows,m.zones):positionPredict(rows,m.positions);const alt=[];
+  for(let k=0;k<2;k++){
+    if(m.kind==="combo"){const t={};for(const zone in m.zones){const pool=pred.detail[zone].ranked.slice(0,m.zones[zone].pick*2);t[zone]=sampleN(pool,m.zones[zone].pick).sort((a,b)=>a-b);}alt.push(t);}
+    else{const t=[];for(let p=0;p<m.positions;p++){t.push(pred.detail[p].ranked.slice(0,3)[Math.floor(Math.random()*3)]);}alt.push(t);}
+  }
+  return {main:pred.main,alt};
+}
+function sampleN(arr,n){const a=arr.slice(),out=[];while(out.length<n&&a.length){out.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);}return out;}
+
+function loadGurus(code){try{return JSON.parse(localStorage.getItem("guru_"+code)||"[]");}catch(e){return [];}}
+function saveGurus(code,items){localStorage.setItem("guru_"+code,JSON.stringify(items));}
+function guruStats(code){const items=loadGurus(code),m=META[code],counts={};
+  items.forEach(it=>{if(m.kind==="position"){it.numbers.forEach((d,p)=>{const k="p"+p+"_"+d;counts[k]=counts[k]||{count:0,sources:new Set()};counts[k].count++;counts[k].sources.add(it.source);});}else{it.numbers.forEach(d=>{const k=it.zone+"_"+d;counts[k]=counts[k]||{count:0,sources:new Set()};counts[k].count++;counts[k].sources.add(it.source);});}});
+  const stats={};for(const k in counts)stats[k]={count:counts[k].count,sources:[...counts[k].sources]};return {items,stats};
+}
+
+const tabsEl=document.getElementById("tabs");
+ORDER.forEach(c=>{const b=document.createElement("button");b.textContent=META[c].name;b.dataset.code=c;b.onclick=()=>switchCode(c);tabsEl.appendChild(b);});
+function switchCode(c){current=c;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("active",b.dataset.code===c));
+  const zsel=document.getElementById("guruZone");zsel.innerHTML="";const zones=(c=="ssq"||c==="dlt")?["red","blue"]:["red"];
+  zones.forEach(z=>{const o=document.createElement("option");o.value=z;o.textContent=ZLABEL[c][z];zsel.appendChild(o);});
+  document.getElementById("guruNums").placeholder=c==="plw"?"5 位数字 空格分隔":(c=="pls"||c==="sd")?"3 位数字 空格分隔":"号码 空格分隔";refresh();
+}
+const pad=n=>String(n).padStart(2,"0");
+async function refresh(){document.getElementById("status").textContent="更新中…";timer=60;
+  try{const rows=await fetchHistory(current);if(!rows.length)throw new Error("暂无数据");
+    const pred=makePrediction(current,rows);
+    renderLatest(rows);renderPredict(pred);renderGuru(guruStats(current));renderHistory(rows);
+    const now=new Date();document.getElementById("status").innerHTML=`已更新 <b>${now.getHours()}:${pad(now.getMinutes())}</b>　共 ${rows.length} 期`;
+  }catch(e){document.getElementById("latest").innerHTML=`<div class="err">数据获取失败：${e.message}（请检查网络后重试）</div>`;}
+}
+function renderLatest(rows){const r=rows[0],c=current;let html="";
+  if(c==="ssq"||c==="dlt"){const zc=ZLABEL[c],bc=BCLASS[c];html+=`<div class="row-label">${zc.red}（第 ${r.issue} 期 · ${r.date||""}）</div><div class="balls">`;
+    html+=r.red.slice().sort((a,b)=>a-b).map(n=>`<div class="ball ${bc.red}">${pad(n)}</div>`).join("" );html+=`<div class="sep">+</div>`;
+    html+=r.blue.slice().sort((a,b)=>a-b).map(n=>`<div class="ball ${bc.blue}">${pad(n)}</div>`).join("");html+=`</div>`;
+  }else{html+=`<div class="row-label">号码（第 ${r.issue} 期 · ${r.date||""}）${r.note?'　<span style="color:#e67e22">'+r.note+'</span>':''}</div><div class="balls">`;
+    html+=r.red.map(n=>`<div class="digit">${n}</div>`).join("");html+=`</div>`;}
+  document.getElementById("latest").innerHTML=html;}
+function renderPredict(pred){const c=current;let html="";
+  if(c==="ssq"||c==="dlt"){const bc=BCLASS[c];html+=`<div class="row-label">主推荐</div><div class="balls">`;
+    html+=pred.main.red.slice().sort((a,b)=>a-b).map(n=>`<div class="ball ${bc.red}">${pad(n)}</div>`).join("");html+=`<div class="sep">+</div>`;
+    html+=pred.main.blue.slice().sort((a,b)=>a-b).map(n=>`<div class="ball ${bc.blue}">${pad(n)}</div>`).join("");html+=`</div>`;
+    pred.alt.forEach((t,i)=>{html+=`<div class="alt">备选${i+2}：`;html+=t.red.slice().sort((a,b)=>a-b).map(n=>`<span class="mini ${bc.red}">${pad(n)}</span>`).join("");html+=`<span class="sep">+</span>`;html+=t.blue.slice().sort((a,b)=>a-b).map(n=>`<span class="mini ${bc.blue}">${pad(n)}</span>`).join("");html+=`</div>`;});
+  }else{html+=`<div class="row-label">主推荐</div><div class="balls">`;html+=pred.main.map(n=>`<div class="digit">${n}</div>`).join("");html+=`</div>`;
+    pred.alt.forEach((t,i)=>{html+=`<div class="alt">备选${i+2}：`+t.map(n=>`<span class="mini d">${n}</span>`).join("")+`</div>`;});}
+  document.getElementById("predict").innerHTML=html;}
+function renderGuru(g){let entries=Object.entries(g.stats||{});let sh="";
+  if(entries.length){entries.sort((a,b)=>b[1].count-a[1].count);sh=`<div class="stat-chips">`+entries.map(([k,v])=>`<span class="chip">${k.replace(/^p\d_/,"").replace("red_","").replace("blue_","蓝")} <b>×${v.count}</b></span>`).join("")+`</div>`;}
+  else{sh=`<div class="note" style="padding:8px">暂无大神号码，录入你在各平台看到的号码后自动统计。</div>`;}
+  document.getElementById("guruStats").innerHTML=sh;
+  let lh="";g.items.slice().reverse().forEach(it=>{const nums=it.numbers.map(n=>(current==="ssq"||current==="dlt")?pad(n):n).join(" ");lh+=`<div class="guru-item"><span class="src">${it.source}</span><span>${nums}</span><span style="color:#bbb">${it.time}</span></div>`;});
+  document.getElementById("guruList").innerHTML=lh;}
+function addGuru(){const source=document.getElementById("guruSource").value.trim()||"网友";const zone=document.getElementById("guruZone").value;
+  const numbers=document.getElementById("guruNums").value.replace(/,/g," ").split(/\s+/).filter(x=>x!=="").map(Number);
+  if(!numbers.length){alert("请输入号码");return;}
+  const items=loadGurus(current);const now=new Date();items.push({source,zone,numbers,time:now.toLocaleDateString()+" "+now.toTimeString().slice(0,5)});saveGurus(current,items);document.getElementById("guruNums").value="";renderGuru(guruStats(current));}
+function renderHistory(rows){const c=current;let head,body="";
+  if(c=="ssq"||c=="dlt"){head=`<tr><th>期号</th><th>${ZLABEL[c].red}</th><th>${ZLABEL[c].blue}</th></tr>`;
+    rows.slice(0,10).forEach(r=>{body+=`<tr><td>${r.issue}</td><td>${r.red.slice().sort((a,b)=>a-b).map(pad).join(" ")}</td><td>${r.blue.slice().sort((a,b)=>a-b).map(pad).join(" ")}</td></tr>`;});}
+  else{head=`<tr><th>期号</th><th>号码</th></tr>`;rows.slice(0,10).forEach(r=>{body+=`<tr><td>${r.issue}</td><td>${r.red.join(" ")}</td></tr>`;});}
+  document.getElementById("history").innerHTML=`<table>${head}${body}</table>`;}
+setInterval(()=>{timer--;document.getElementById("countdown").textContent=timer>0?`${timer}s 后刷新`:"";if(timer<=0)refresh();},1000);
+switchCode("ssq");
+</script>
+</body>
+</html>
